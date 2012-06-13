@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<flexLibProperties includeAllClasses="true" useMultiPlatformConfig="false" version="3">
+  <includeClasses>
+    <classEntry path="sxf.comps.antlineselector.AntLineRectSelector"/>
+    <classEntry path="sxf.comps.loaders.ArgLoader"/>
+    <classEntry path="sxf.comps.loaders.ProgressiveLoader"/>
+    <classEntry path="sxf.comps.localfileloader.LocalFileBrowseEvent"/>
+    <classEntry path="sxf.comps.localfileloader.LocalFileBrowseType"/>
+    <classEntry path="sxf.comps.localfileloader.LocalFileBrowser"/>
+    <classEntry path="sxf.comps.localfileloader.LocalFileLoader"/>
+    <classEntry path="sxf.comps.localfileloader.LocalFileLoaderEvent"/>
+    <classEntry path="sxf.comps.uploader.FileUploader"/>
+    <classEntry path="sxf.comps.uploader.SplitUploader"/>
+    <classEntry path="sxf.comps.uploader.SplitUploaderEvent"/>
+    <classEntry path="sxf.utils.gamedrawing.GameDrawing"/>
+    <classEntry path="sxf.utils.selector.lineselector.AntLine"/>
+    <classEntry path="sxf.utils.selector.lineselector.CropSelectorEvent"/>
+    <classEntry path="sxf.utils.selector.lineselector.LineSelector"/>
+    <classEntry path="sxf.utils.selector.lineselector.LineSelectorSkin"/>
+    <classEntry path="sxf.utils.selector.cropselector.CropSelector"/>
+    <classEntry path="sxf.utils.selector.cropselector.CropSelectorSkin"/>
+    <classEntry path="sxf.utils.selector.cropselector.SolidLine"/>
+    <classEntry path="sxf.utils.selector.cropselector.HandleButton"/>
+  </includeClasses>
+  <includeResources>
+    <resourceEntry destPath="defaults.css" sourcePath="defaults.css"/>
+  </includeResources>
+  <namespaceManifests/>
+</flexLibProperties>

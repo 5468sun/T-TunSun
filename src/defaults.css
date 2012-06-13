@@ -1,0 +1,25 @@
+/* CSS file */
+@namespace s "library://ns.adobe.com/flex/spark";
+@namespace mx "library://ns.adobe.com/flex/mx";
+@namespace lineselector "sxf.utils.selector.lineselector.*";
+@namespace cropselector "sxf.utils.selector.cropselector.*";
+
+lineselector|LineSelector{
+	skin-class:ClassReference("sxf.utils.selector.lineselector.LineSelectorSkin");
+}
+lineselector|AntLine{
+	oddGap:4px;
+	evenGap:4px;
+	oddColor:#000000;
+	evenColor:#FFFFFF;
+	lineThickness:1px;
+}
+cropselector|CropSelector{
+	skin-class:ClassReference("sxf.utils.selector.cropselector.CropSelectorSkin");
+}
+cropselector|SolidLine{
+	
+}
+cropselector|HandleButton{
+
+}
