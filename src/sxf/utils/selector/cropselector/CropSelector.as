@@ -6,6 +6,7 @@ package sxf.utils.selector.cropselector
 	import flash.geom.Point;
 	import flash.geom.Rectangle;
 	
+	import mx.core.BitmapAsset;
 	import mx.core.FlexGlobals;
 	import mx.core.UIComponent;
 	import mx.events.FlexEvent;
@@ -34,10 +35,6 @@ package sxf.utils.selector.cropselector
 		private var _rectPoints:Array;
 		private var _activatedBtn:Sprite;
 		
-		/*private var _rectX:Number;
-		private var _rectY:Number;
-		private var _rectW:Number;
-		private var _rectH:Number;*/
 		private var _cropRect:Rectangle;
 
 		private var _restrainRect:Rectangle;
@@ -90,79 +87,36 @@ package sxf.utils.selector.cropselector
 		[SkinPart(required="true")]
 		public var _brBtn:HandleButton;
 		
+		[Embed(source="/TunSun/assets/cropping.png")]
+		public var MouseCropping:Class;
+		
+		[Embed(source="/TunSun/assets/moving.png")]
+		public var MouseMoving:Class;
+		
+		[Embed(source="/TunSun/assets/resize_vertical.png")]
+		public var MouseResizeVertical:Class;
+		
+		[Embed(source="/TunSun/assets/resize-horizontal.png")]
+		public var MouseResizeHorizontal:Class;
+		
+		[Embed(source="/TunSun/assets/resize_angel1.png")]
+		public var MouseResizeAngel1:Class;
+		
+		[Embed(source="/TunSun/assets/resize_angel2.png")]
+		public var MouseResizeAngel2:Class;
+		
 		public function CropSelector()
 		{
 			super();
 			_cropRect = new Rectangle();
 			addEventListener(FlexEvent.CREATION_COMPLETE,onCreateComplete);
-			addEventListener(Event.RESIZE,onResize);
 			addEventListener(MouseEvent.MOUSE_DOWN,onMouseDown);
 			
 			addEventListener(MouseEvent.ROLL_OVER,onMouseOver);
 			addEventListener(MouseEvent.ROLL_OUT,onMouseOut);
-		}
-		
-		/*public function getRectangle():Rectangle
-		{
-			return new Rectangle(rectangle.x,rectangle.y,rectangle.width,rectangle.height);
-		}
-
-		private function get rectangle.x():Number
-		{
-			return _rectX;
-		}
-
-		private function set rectangle.x(value:Number):void
-		{
-			if(value != _rectX)
-			{
-				_rectX = value;
-				invalidateProperties();
-			}
 			
+			addEventListener(Event.RESIZE,onResize);
 		}
-
-		public function get rectangle.y():Number
-		{
-			return _rectY;
-		}
-
-		public function set rectangle.y(value:Number):void
-		{
-			if(value != _rectY)
-			{
-				_rectY = value;
-				invalidateProperties();
-			}
-		}
-
-		public function get rectangle.width():Number
-		{
-			return _rectW;
-		}
-
-		public function set rectangle.width(value:Number):void
-		{
-			if(value != _rectW)
-			{
-				_rectW = value;
-				invalidateProperties();
-			}
-		}
-
-		public function get rectangle.height():Number
-		{
-			return _rectH;
-		}
-
-		public function set rectangle.height(value:Number):void
-		{
-			if(value != _rectH)
-			{
-				_rectH = value;
-				invalidateProperties();
-			}
-		}*/
 		
 		public function get cropRect():Rectangle
 		{
@@ -189,7 +143,6 @@ package sxf.utils.selector.cropselector
 			if(value != _restrainRect)
 			{
 				_restrainRect = value;
-				invalidateProperties();
 			}
 		}
 		
@@ -210,7 +163,6 @@ package sxf.utils.selector.cropselector
 			if(value != _ratio)
 			{
 				_ratio = value;
-				invalidateProperties();
 			}
 			
 			
@@ -229,6 +181,19 @@ package sxf.utils.selector.cropselector
 			{
 				_mode = value;
 			}
+		}
+		
+		public function deActivate():void
+		{
+			this.visible = false;
+			_selecting = false;
+			cropRect = new Rectangle();
+			invalidateSkinState();
+		}
+		
+		public function activate():void
+		{
+			this.visible = true;
 		}
 		
 		override protected function partAdded(partName:String, instance:Object):void
@@ -310,6 +275,10 @@ package sxf.utils.selector.cropselector
 			{
 				skinState = "selected";
 			}
+			else if(!_selecting && cropRect.width == 0 && cropRect.height == 0)
+			{
+				skinState = "normal";
+			}
 			else
 			{
 				skinState = "normal";
@@ -320,14 +289,15 @@ package sxf.utils.selector.cropselector
 		override protected function commitProperties():void
 		{
 			super.commitProperties();
-			_antLine.rectangle = cropRect;
-			_solidLine.rectangle = cropRect;
+			_rectPoints = calcRectPoints();
 			invalidateDisplayList();
 		}
 		
 		override protected function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void
 		{
-			_rectPoints = calcRectPoints();
+			_antLine.rectangle = cropRect;
+			_solidLine.rectangle = cropRect;
+			
 			_tlBtn.x = _rectPoints[0].x;
 			_tlBtn.y = _rectPoints[0].y;
 			_tmBtn.x = _rectPoints[1].x;
@@ -430,7 +400,7 @@ package sxf.utils.selector.cropselector
 				handleLocalOffsetX = Math.round(HandleButton(e.currentTarget).width/2) - e.localX;
 				handleLocalOffsetY = Math.round(HandleButton(e.currentTarget).height/2) - e.localY;
 				
-				_rectPoints = calcRectPoints();
+				//_rectPoints = calcRectPoints();
 				
 				switch (e.currentTarget){
 					
@@ -486,21 +456,19 @@ package sxf.utils.selector.cropselector
 			addEventListener(MouseEvent.MOUSE_MOVE,onMouseDownMove);
 			stage.addEventListener(MouseEvent.MOUSE_UP, onStageMouseUp);
 			addEventListener(MouseEvent.MOUSE_UP,onMouseUp);
-			removeEventListener(MouseEvent.MOUSE_MOVE,onMouseMove);
 		}
 		
 		private function onMouseDownMove(e:MouseEvent):void
 		{
 			invalidateSkinState();
 			addEventListener(Event.ENTER_FRAME,onEnterFrame);
+			removeEventListener(MouseEvent.MOUSE_MOVE,onMouseMove);
 		}
 		
 		private function onEnterFrame(e:Event):void{
 			
 			var newRect:Rectangle;
 			var mousePoint:Point;
-			
-			_rectPoints = calcRectPoints();
 			
 			if(_selecting){
 				
@@ -642,31 +610,6 @@ package sxf.utils.selector.cropselector
 			mousePoint.x = this.mouseX;
 			mousePoint.y = this.mouseY;
 			dispatchEvent(new CropSelectorEvent(CropSelectorEvent.MOUSE_LOCATION,false,false,mousePoint));
-			/*if(x<restrainRect.x)
-			{
-			x = 0;
-			}
-			else if(x>restrainRect.x + restrainRect.width)
-			{
-			x = restrainRect.x + restrainRect.width
-			}
-			else
-			{
-			x = x-restrainRect.x;
-			}
-			
-			if(y<restrainRect.y)
-			{
-			y = 0;
-			}
-			else if(y>restrainRect.y + restrainRect.height)
-			{
-			y = restrainRect.y + restrainRect.height
-			}
-			else
-			{
-			y = y-restrainRect.y;
-			}*/
 		}
 		
 		private function onHandleOver(e:MouseEvent):void
@@ -868,27 +811,24 @@ package sxf.utils.selector.cropselector
 						
 						if(ratio){
 							
-							//模式1：
-							crossPoint = new Point((d-b)/(a-c),(a*(d-b)/(a-c))+b);
-							restrainRect = restrainRect;
-							
-							
-							
-							///*模式2：
-							
-							/*if(Math.abs((refPoint.x - _resizeInitPoint.x)/(refPoint.y - _resizeInitPoint.y))>ratio){
-							
-							crossPoint = new Point(Math.round((refPoint.y-b)/a),refPoint.y);
-							
-							}else{
-							
-							crossPoint = new Point(refPoint.x,Math.round(a*refPoint.x+b));
-							
-							}*/
-							
-							//模式2*/
-							
-							
+							if(mode == mode1)
+							{
+								crossPoint = new Point((d-b)/(a-c),(a*(d-b)/(a-c))+b);
+								restrainRect = restrainRect;
+							}
+							else if(mode == mode2)
+							{
+								if(Math.abs((refPoint.x - _resizeInitPoint.x)/(refPoint.y - _resizeInitPoint.y))>ratio){
+									
+									crossPoint = new Point(Math.round((refPoint.y-b)/a),refPoint.y);
+									
+								}else{
+									
+									crossPoint = new Point(refPoint.x,Math.round(a*refPoint.x+b));
+									
+								}
+							}
+
 						}else{
 							
 							crossPoint = refPoint;

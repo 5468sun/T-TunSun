@@ -364,7 +364,7 @@ package sxf.utils.selector.lineselector
 		
 		override protected function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void
 		{
-			if(rectangle && !isNaN(rectangle.x) && !isNaN(rectangle.y) && rectangle.width && rectangle.height)
+			if(rectangle && rectangle.x && rectangle.x && rectangle.width && rectangle.height)
 			{
 				_timer.start();
 			}

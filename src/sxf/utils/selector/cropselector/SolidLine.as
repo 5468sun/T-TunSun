@@ -23,7 +23,7 @@ package sxf.utils.selector.cropselector
 		private static const defaultLineThickness:uint = 1;
 		private static const defaultLineAlpha:Number = 1;
 		private static const defaultBackGroundColor:uint = 0xffffff;
-		private static const defaultBackGroundAlpha:Number = 0.1;
+		private static const defaultBackGroundAlpha:Number = 0;
 		private static const defaultLineCapStyle:String = "square";
 		private static const defaultLineJoinStyle:String = "miter";
 		private static const defaultLineMiterLimit:Number = 0;
@@ -242,7 +242,7 @@ package sxf.utils.selector.cropselector
 		{
 			var drawingRect:Rectangle = convertRect(rectangle,lineThickness);;
 			
-			if(drawingRect && !isNaN(drawingRect.x) && !isNaN(drawingRect.y) && !isNaN(drawingRect.width) && !isNaN(drawingRect.height))
+			if(drawingRect && drawingRect.x && drawingRect.y && drawingRect.width && drawingRect.height)
 			{
 				graphics.clear();
 				graphics.moveTo(drawingRect.x,drawingRect.y);
