@@ -71,4 +71,5 @@
 	<cropselector:HandleButton id="_mlBtn" visible="false" visible.selected="true" />
 	<cropselector:HandleButton id="_blBtn" visible="false" visible.selected="true" />
 	<cropselector:HandleButton id="_tlBtn" visible="false" visible.selected="true" />
+	<s:Image id="_mouseCursor"/>
 </s:Skin>

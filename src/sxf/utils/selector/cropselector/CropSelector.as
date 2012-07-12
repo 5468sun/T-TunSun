@@ -5,6 +5,7 @@ package sxf.utils.selector.cropselector
 	import flash.events.MouseEvent;
 	import flash.geom.Point;
 	import flash.geom.Rectangle;
+	import flash.ui.Mouse;
 	
 	import mx.core.BitmapAsset;
 	import mx.core.FlexGlobals;
@@ -12,6 +13,7 @@ package sxf.utils.selector.cropselector
 	import mx.events.FlexEvent;
 	import mx.styles.CSSStyleDeclaration;
 	
+	import spark.components.Image;
 	import spark.components.supportClasses.SkinnableComponent;
 	
 	import sxf.utils.selector.cropselector.CropSelectorEvent;
@@ -24,26 +26,48 @@ package sxf.utils.selector.cropselector
 	[Style(name="restrainRect",type="Rectangle",inherit="yes")]
 	[Style(name="ratio",type="Number",inherit="yes")]
 	
+	[Style(name="maskColor",type="Color",inherit="yes")]
+	[Style(name="maskOpacity",type="Number",inherit="yes")]
+
 	public class CropSelector extends SkinnableComponent
 	{
 		private static var classConstructed:Boolean = classConstruct();
 		private static const defaultRestrainRect:Rectangle = null;
 		private static const defaultRatio:Number = 0;
+		private static const defaultMaskColor:uint = 0x000000;
+		private static const defaultMaskOpacity:Number = 0.5;
 		private static const mode1:String = "mode1";
 		private static const mode2:String = "mode2";
+		private static const NORMAL:String = "normal";
+		private static const SELECTING:String = "selecting";
+		private static const MOVING:String = "moving";
+		private static const RESIZING:String = "resizing";
+		private static const SELECTED:String = "selected";
 
 		private var _rectPoints:Array;
 		private var _activatedBtn:Sprite;
 		
-		private var _cropRect:Rectangle;
+		private var _cropRect:Rectangle = new Rectangle();
+		private var _cropRectChange:Boolean = false;
 
 		private var _restrainRect:Rectangle;
 		private var _ratio:Number;
 		private var _mode:String = mode1;
 		
+		private var _maskColor:uint;
+		private var _maskOpacity:Number;
+		
+		private var _activated:Boolean = false;
+		private var _activatedChange:Boolean = false;
+		
+		private var _compState:String = NORMAL;
+		private var _compStateChange:Boolean = false;
+		
+		/*private var _normal:Boolean = false;
 		private var _selecting:Boolean = false;
 		private var _resizing:Boolean = false;
 		private var _moving:Boolean = false;
+		private var _selected:Boolean = false;*/
 		
 		private var _selectInitPoint:Point;
 		private var _selectEndPoint:Point;
@@ -87,6 +111,9 @@ package sxf.utils.selector.cropselector
 		[SkinPart(required="true")]
 		public var _brBtn:HandleButton;
 		
+		[SkinPart(required="false")]
+		public var _mouseCursor:Image;
+		
 		[Embed(source="/TunSun/assets/cropping.png")]
 		public var MouseCropping:Class;
 		
@@ -108,16 +135,16 @@ package sxf.utils.selector.cropselector
 		public function CropSelector()
 		{
 			super();
-			_cropRect = new Rectangle();
+
 			addEventListener(FlexEvent.CREATION_COMPLETE,onCreateComplete);
 			addEventListener(MouseEvent.MOUSE_DOWN,onMouseDown);
 			
-			addEventListener(MouseEvent.ROLL_OVER,onMouseOver);
-			addEventListener(MouseEvent.ROLL_OUT,onMouseOut);
+			addEventListener(MouseEvent.ROLL_OVER,onMouseRollOver);
+			addEventListener(MouseEvent.MOUSE_MOVE,onMouseMove);
 			
 			addEventListener(Event.RESIZE,onResize);
 		}
-		
+
 		public function get cropRect():Rectangle
 		{
 			return _cropRect;
@@ -128,6 +155,7 @@ package sxf.utils.selector.cropselector
 			if(!value.equals(_cropRect))
 			{
 				_cropRect = value;
+				_cropRectChange = true;
 				invalidateProperties();
 			}
 		}
@@ -143,6 +171,64 @@ package sxf.utils.selector.cropselector
 			if(value != _restrainRect)
 			{
 				_restrainRect = value;
+			}
+		}
+		
+		
+		public function get activated():Boolean
+		{
+			return _activated;
+		}
+		
+		public function set activated(value:Boolean):void
+		{
+			if(value != _activated)
+			{
+				_activated = value;
+				_activatedChange = true;
+				invalidateProperties();
+			}
+		}
+		
+		public function get compState():String
+		{
+			return _compState;
+		}
+		
+		public function set compState(value:String):void
+		{
+			if(value != _compState)
+			{
+				_compState = value;
+				_compStateChange = true;
+				invalidateProperties();
+			}
+			
+		}
+		
+		public function get maskColor():uint
+		{
+			return _maskColor;
+		}
+		
+		public function set maskColor(value:uint):void
+		{
+			if(value != _maskColor)
+			{
+				_maskColor = value;
+			}
+		}
+		
+		public function get maskOpacity():Number
+		{
+			return _maskOpacity;
+		}
+		
+		public function set maskOpacity(value:Number):void
+		{
+			if(value != _maskOpacity)
+			{
+				_maskOpacity = value;
 			}
 		}
 		
@@ -185,35 +271,36 @@ package sxf.utils.selector.cropselector
 		
 		public function deActivate():void
 		{
-			this.visible = false;
-			_selecting = false;
-			cropRect = new Rectangle();
-			invalidateSkinState();
+			activated = false;
 		}
 		
 		public function activate():void
 		{
-			this.visible = true;
+			activated = true;
 		}
 		
 		override protected function partAdded(partName:String, instance:Object):void
 		{
 			if(instance == _antLine)
 			{
-				_antLine.addEventListener(MouseEvent.MOUSE_DOWN,onMouseDown);
-				_antLine.addEventListener(MouseEvent.MOUSE_UP,onMouseUp);
+				//do nothing
 			}
 			else if(instance == _solidLine)
 			{
 				_solidLine.addEventListener(MouseEvent.MOUSE_DOWN,onMouseDown);
 				_solidLine.addEventListener(MouseEvent.MOUSE_UP,onMouseUp);
+				_solidLine.addEventListener(MouseEvent.ROLL_OVER,onSolidLineRollOver);
 			}
 			else if(instance == _tlBtn || instance == _tmBtn || instance == _trBtn || instance == _mlBtn || instance == _mrBtn || instance == _blBtn || instance == _bmBtn || instance == _brBtn)
 			{
 				HandleButton(instance).addEventListener(MouseEvent.MOUSE_DOWN,onMouseDown);
 				HandleButton(instance).addEventListener(MouseEvent.MOUSE_UP,onMouseUp);
-				HandleButton(instance).addEventListener(MouseEvent.ROLL_OVER,onHandleOver);
-				HandleButton(instance).addEventListener(MouseEvent.ROLL_OUT,onHandleOut);
+				HandleButton(instance).addEventListener(MouseEvent.ROLL_OVER,onHandleRollOver);
+			}
+			else if(instance == _mouseCursor)
+			{
+				_mouseCursor.mouseEnabled = false;
+				_mouseCursor.mouseChildren = false;
 			}
 		}
 		
@@ -221,20 +308,23 @@ package sxf.utils.selector.cropselector
 		{
 			if(instance == _antLine)
 			{
-				_antLine.removeEventListener(MouseEvent.MOUSE_DOWN,onMouseDown);
-				_antLine.removeEventListener(MouseEvent.MOUSE_UP,onMouseUp);
+				//do nothing
 			}
 			else if(instance == _solidLine)
 			{
 				_solidLine.removeEventListener(MouseEvent.MOUSE_DOWN,onMouseDown);
 				_solidLine.removeEventListener(MouseEvent.MOUSE_UP,onMouseUp);
+				_solidLine.removeEventListener(MouseEvent.ROLL_OVER,onSolidLineRollOver);
 			}
 			else if(instance == _tlBtn || instance == _tmBtn || instance == _trBtn || instance == _mlBtn || instance == _mrBtn || instance == _blBtn || instance == _bmBtn || instance == _brBtn)
 			{
 				HandleButton(instance).removeEventListener(MouseEvent.MOUSE_DOWN,onMouseDown);
 				HandleButton(instance).removeEventListener(MouseEvent.MOUSE_UP,onMouseUp);
-				HandleButton(instance).removeEventListener(MouseEvent.ROLL_OVER,onHandleOver);
-				HandleButton(instance).removeEventListener(MouseEvent.ROLL_OUT,onHandleOut);
+				HandleButton(instance).removeEventListener(MouseEvent.ROLL_OVER,onHandleRollOver);
+			}
+			else if(instance == _mouseCursor)
+			{
+				//do nothing
 			}
 		}
 		
@@ -252,6 +342,16 @@ package sxf.utils.selector.cropselector
 					ratio = getStyle("ratio");
 					break;
 				
+				case "maskColor":
+					
+					maskColor = getStyle("maskColor");
+					break;
+				
+				case "maskOpacity":
+					
+					maskOpacity = getStyle("maskOpacity");
+					break;
+				
 				default:
 					break;
 			}
@@ -261,61 +361,99 @@ package sxf.utils.selector.cropselector
 		{
 			if(!restrainRect) restrainRect = getStyle("restrainRect");
 			if(!ratio ) ratio = getStyle("ratio");
-		}
-
-		override protected function getCurrentSkinState():String
-		{
-			var skinState:String;
-
-			if(_selecting && (cropRect.width && cropRect.height))
-			{
-				skinState = "selecting";
-			}
-			else if(!_selecting && (cropRect.width && cropRect.height))
-			{
-				skinState = "selected";
-			}
-			else if(!_selecting && cropRect.width == 0 && cropRect.height == 0)
-			{
-				skinState = "normal";
-			}
-			else
-			{
-				skinState = "normal";
-			}
-			return skinState;
+			if(!maskColor ) maskColor = getStyle("maskColor");
+			if(!maskOpacity ) maskOpacity = getStyle("maskOpacity");
 		}
 		
 		override protected function commitProperties():void
 		{
 			super.commitProperties();
-			_rectPoints = calcRectPoints();
-			invalidateDisplayList();
+			
+			if(_activatedChange)
+			{
+				if(_activated)
+				{
+					compState = NORMAL;
+				}
+				else if(!_activated)
+				{
+					compState = NORMAL;
+					cropRect = new Rectangle();
+				}
+				invalidateSkinState();
+				invalidateDisplayList();
+				
+			}
+			
+			if(_cropRectChange)
+			{
+				_rectPoints = calcRectPoints();
+				invalidateDisplayList();
+				
+			}
+			
+			if(_compStateChange)
+			{
+				invalidateSkinState();
+				invalidateDisplayList();
+				
+			}
 		}
 		
 		override protected function updateDisplayList(unscaledWidth:Number, unscaledHeight:Number):void
 		{
-			_antLine.rectangle = cropRect;
-			_solidLine.rectangle = cropRect;
-			
-			_tlBtn.x = _rectPoints[0].x;
-			_tlBtn.y = _rectPoints[0].y;
-			_tmBtn.x = _rectPoints[1].x;
-			_tmBtn.y = _rectPoints[1].y;
-			_trBtn.x = _rectPoints[2].x;
-			_trBtn.y = _rectPoints[2].y;
-			_mlBtn.x = _rectPoints[3].x;
-			_mlBtn.y = _rectPoints[3].y;
-			_mrBtn.x = _rectPoints[4].x;
-			_mrBtn.y = _rectPoints[4].y;
-			_blBtn.x = _rectPoints[5].x;
-			_blBtn.y = _rectPoints[5].y;
-			_bmBtn.x = _rectPoints[6].x;
-			_bmBtn.y = _rectPoints[6].y;
-			_brBtn.x = _rectPoints[7].x;
-			_brBtn.y = _rectPoints[7].y;
-			
 			super.updateDisplayList(unscaledWidth,unscaledHeight);
+			
+			if(_activatedChange)
+			{
+				if(_activated)
+				{
+					this.visible = true;
+				}
+				else if(!_activated)
+				{
+					this.visible = false;
+					clearMask();
+				}
+				
+				_activatedChange = false;
+			}
+			
+			if(_cropRectChange)
+			{
+				if(compState == SELECTING)
+				{
+					clearMask();
+					_antLine.rectangle = cropRect;
+				}
+				else if(compState == SELECTED || compState == MOVING || compState == RESIZING)
+				{
+					_solidLine.rectangle = cropRect;
+					positionHandles();
+					drawMask();
+				}
+				
+				_cropRectChange = false;
+			}
+		}
+		
+		override protected function getCurrentSkinState():String
+		{
+			var skinState:String;
+			
+			if(_compState == NORMAL)
+			{
+				skinState = "normal";
+			}
+			else if(_compState == SELECTING)
+			{
+				skinState = "selecting";
+			}
+			else if(_compState == RESIZING || _compState == MOVING || _compState == SELECTED)
+			{
+				skinState = "selected";
+			}
+			return skinState;
 		}
 		
 		//  事件处理函数    /////////////////////////////////////////////////////////////////////////////////////////////
@@ -365,10 +503,7 @@ package sxf.utils.selector.cropselector
 			if(e.currentTarget == this)//拖放选取
 			{
 				cropRect = new Rectangle();
-				
-				_resizing = false;
-				_moving = false;
-				_selecting = true;
+				compState = SELECTING;
 				_activatedBtn = null;
 				
 				_selectInitPoint = restrainInitPoint(new Point(this.mouseX,this.mouseY),restrainRect);
@@ -380,11 +515,8 @@ package sxf.utils.selector.cropselector
 			}
 			else if(e.currentTarget is SolidLine)//拖放移动
 			{
-				_selecting = false;
-				_resizing = false;
-				_moving = true;
+				compState = MOVING;
 				_activatedBtn = null;
-				
 				_moveInitPoint = new Point(this.mouseX - cropRect.x,this.mouseY - cropRect.y);
 				_moveEndPoint = _moveInitPoint;
 				newRect = cropRect;
@@ -393,9 +525,7 @@ package sxf.utils.selector.cropselector
 			}
 			else if(e.currentTarget is HandleButton)//拖放调整大小
 			{
-				_selecting = false;
-				_moving = false;
-				_resizing = true;
+				compState = RESIZING;
 				
 				handleLocalOffsetX = Math.round(HandleButton(e.currentTarget).width/2) - e.localX;
 				handleLocalOffsetY = Math.round(HandleButton(e.currentTarget).height/2) - e.localY;
@@ -454,15 +584,14 @@ package sxf.utils.selector.cropselector
 			
 			invalidateSkinState();
 			addEventListener(MouseEvent.MOUSE_MOVE,onMouseDownMove);
-			stage.addEventListener(MouseEvent.MOUSE_UP, onStageMouseUp);
 			addEventListener(MouseEvent.MOUSE_UP,onMouseUp);
+			stage.addEventListener(MouseEvent.MOUSE_UP, onStageMouseUp);
 		}
 		
 		private function onMouseDownMove(e:MouseEvent):void
 		{
-			invalidateSkinState();
 			addEventListener(Event.ENTER_FRAME,onEnterFrame);
-			removeEventListener(MouseEvent.MOUSE_MOVE,onMouseMove);
+			removeEventListener(MouseEvent.MOUSE_MOVE,onMouseDownMove);
 		}
 		
 		private function onEnterFrame(e:Event):void{
@@ -470,25 +599,25 @@ package sxf.utils.selector.cropselector
 			var newRect:Rectangle;
 			var mousePoint:Point;
 			
-			if(_selecting){
+			if(compState == SELECTING){
 				
 				mousePoint = new Point(this.mouseX,this.mouseY);
 				_selectEndPoint = getRestrainCrossPoint(mousePoint,restrainRect);
 				
 				newRect = calcRectFromPoints(_selectInitPoint,_selectEndPoint);
 				cropRect = newRect;
-				dispatchEvent(new CropSelectorEvent(CropSelectorEvent.SELECT_PROCCESS,false,false,_selectInitPoint,_selectEndPoint,newRect));
+				dispatchEvent(new CropSelectorEvent(CropSelectorEvent.SELECT_PROCCESS,false,false,_selectInitPoint,_selectEndPoint,cropRect));
 				
-			}else if(_resizing){
+			}else if(compState == RESIZING){
 				
 				mousePoint = new Point(this.mouseX + handleLocalOffsetX,this.mouseY + handleLocalOffsetY);
 				_resizeEndPoint = getRestrainCrossPoint(mousePoint,restrainRect);
 				
 				newRect = calcRectFromPoints(_resizeInitPoint,_resizeEndPoint);
 				cropRect = newRect;
-				dispatchEvent(new CropSelectorEvent(CropSelectorEvent.RESIZE_PROCCESS,false,false,_resizeInitPoint,_resizeEndPoint,newRect));
+				dispatchEvent(new CropSelectorEvent(CropSelectorEvent.RESIZE_PROCCESS,false,false,_resizeInitPoint,_resizeEndPoint,cropRect));
 				
-			}else if(_moving){
+			}else if(compState == MOVING){
 				
 				var offx:Number;
 				var offy:Number;
@@ -502,7 +631,7 @@ package sxf.utils.selector.cropselector
 				
 				newRect = new Rectangle(cropRect.x+offx,cropRect.y + offy,cropRect.width,cropRect.height);
 				cropRect = newRect;
-				dispatchEvent(new CropSelectorEvent(CropSelectorEvent.MOVE_PROCCESS,false,false,_moveInitPoint,_moveEndPoint,newRect));
+				dispatchEvent(new CropSelectorEvent(CropSelectorEvent.MOVE_PROCCESS,false,false,_moveInitPoint,_moveEndPoint,cropRect));
 			}
 		}
 		
@@ -511,52 +640,97 @@ package sxf.utils.selector.cropselector
 		private function onMouseUp(e:MouseEvent):void
 		{
 			
-			if(_selecting)
+			if(compState == MOVING || compState == RESIZING)
+			{
+				if(e.target == _solidLine)
+				{
+					loadCursor(MouseMoving);
+					positionCursor();
+				}
+				else if(e.target is HandleButton)
+				{
+					switch (_activatedBtn){
+						
+						case _tlBtn:
+						case _brBtn:
+							loadCursor(MouseResizeAngel1);
+							break;
+						
+						case _tmBtn:
+						case _bmBtn:
+							loadCursor(MouseResizeVertical);
+							break;
+						
+						case _trBtn:
+						case _blBtn:
+							loadCursor(MouseResizeAngel2);
+							break;
+						
+						case _mlBtn:
+						case _mrBtn:
+							loadCursor(MouseResizeHorizontal);
+							break;
+					}
+					positionCursor();
+				}
+				else
+				{
+					_mouseCursor.stopDrag();
+					Mouse.show();
+					unloadCursor();
+				}
+			}
+			
+			if(compState == SELECTING)
 			{
 				if(cropRect.width && cropRect.height)
 				{
+					compState = SELECTED;
+					_cropRectChange = true;
 					dispatchEvent(new CropSelectorEvent(CropSelectorEvent.SELECT_FINISH,false,false,_selectInitPoint,_selectEndPoint,cropRect));
 				}
 				else
 				{
+					compState = NORMAL;
+					_cropRectChange = true;
 					dispatchEvent(new CropSelectorEvent(CropSelectorEvent.SELECT_CANCEL,false,false,_selectInitPoint,_selectEndPoint,cropRect));
 				}
 			}
-			else if(_resizing)
+			else if(compState == RESIZING)
 			{
 				if(cropRect.width && cropRect.height)
 				{
+					compState = SELECTED;
+					_cropRectChange = true;
 					dispatchEvent(new CropSelectorEvent(CropSelectorEvent.RESIZE_FINISH,false,false,_resizeInitPoint,_resizeEndPoint,cropRect));
 				}
 				else
 				{
+					compState = NORMAL;
+					_cropRectChange = true;
 					dispatchEvent(new CropSelectorEvent(CropSelectorEvent.RESIZE_CANCEL,false,false,_resizeInitPoint,_resizeEndPoint,cropRect));
 				}
 			}
-			else if(_moving)
+			else if(compState == MOVING)
 			{
 				if(cropRect.width && cropRect.height)
 				{
+					compState = SELECTED;
+					_cropRectChange = true;
 					dispatchEvent(new CropSelectorEvent(CropSelectorEvent.MOVE_FINISH,false,false,_moveInitPoint,_moveEndPoint,cropRect));
 				}
 				else
 				{
+					compState = NORMAL;
+					_cropRectChange = true;
 					dispatchEvent(new CropSelectorEvent(CropSelectorEvent.MOVE_CANCEL,false,false,_moveInitPoint,_moveEndPoint,cropRect));
 				}
 			}
 			
 			
-			
-			_selecting = false;
-			_moving = false;
-			_resizing = false;
-			invalidateSkinState();
 			removeEventListener(Event.ENTER_FRAME,onEnterFrame);
-			removeEventListener(MouseEvent.MOUSE_MOVE,onMouseDownMove);
-			//addEventListener(MouseEvent.MOUSE_MOVE,onMouseMove);
+			removeEventListener(MouseEvent.MOUSE_UP,onMouseUp);
 			stage.removeEventListener(MouseEvent.MOUSE_UP, onStageMouseUp);
-			//e.stopPropagation();
-			addEventListener(MouseEvent.MOUSE_MOVE,onMouseMove);
 		}
 		
 		private function onStageMouseUp(e:MouseEvent):void
@@ -564,66 +738,197 @@ package sxf.utils.selector.cropselector
 			onMouseUp(e);
 		}
 		
-		private function onMouseOver(e:MouseEvent):void
-		{
-			if(_selecting || _resizing || _moving) return;
-			addEventListener(MouseEvent.MOUSE_MOVE,onMouseMove);
-			_solidLine.addEventListener(MouseEvent.ROLL_OVER,onSolidLineOver);
-		}
-		
-		private function onMouseOut(e:MouseEvent):void
-		{
-			if(_selecting || _resizing || _moving) return;
-			var mousePoint:Point = new Point(-1,-1);
-			dispatchEvent(new CropSelectorEvent(CropSelectorEvent.MOUSE_LOCATION,false,false,mousePoint));
-			removeEventListener(MouseEvent.MOUSE_MOVE,onMouseMove);
-		}
-		
-		private function onSolidLineOver(e:MouseEvent):void
-		{
-			if(_selecting || _resizing || _moving) return;
-			removeEventListener(MouseEvent.MOUSE_MOVE,onMouseMove);
-			_solidLine.addEventListener(MouseEvent.ROLL_OUT,onSolidLineOut);
-			_solidLine.addEventListener(MouseEvent.MOUSE_MOVE,onSolidLineMouseMove);
-		}
-		
-		private function onSolidLineMouseMove(e:MouseEvent):void
-		{
-			if(_selecting || _resizing || _moving) return;
-			var mousePoint:Point = new Point(-1,-1);
-			dispatchEvent(new CropSelectorEvent(CropSelectorEvent.MOUSE_LOCATION,false,false,mousePoint));
-		}
-		
-		private function onSolidLineOut(e:MouseEvent):void
-		{
-			if(_selecting || _resizing || _moving) return;
-			addEventListener(MouseEvent.MOUSE_MOVE,onMouseMove);
-			_solidLine.removeEventListener(MouseEvent.MOUSE_MOVE,onSolidLineMouseMove);
-		}
-		
-		
-		
 		private function onMouseMove(e:MouseEvent):void
 		{
-			if(_selecting || _resizing || _moving) return;
-			var mousePoint:Point = new Point();
-			mousePoint.x = this.mouseX;
-			mousePoint.y = this.mouseY;
-			dispatchEvent(new CropSelectorEvent(CropSelectorEvent.MOUSE_LOCATION,false,false,mousePoint));
+			if(compState == NORMAL)
+			{
+				var mouseInitPoint:Point = restrainInitPoint(new Point(this.mouseX,this.mouseY),restrainRect);
+				cropRect = new Rectangle(mouseInitPoint.x,mouseInitPoint.y,0,0);
+				dispatchEvent(new CropSelectorEvent(CropSelectorEvent.MOUSE_LOCATION,false,false,mouseInitPoint,mouseInitPoint,cropRect));
+			}
 		}
 		
-		private function onHandleOver(e:MouseEvent):void
+		private function onMouseRollOver(e:MouseEvent):void
 		{
-			if(_selecting || _resizing || _moving) return;
-			var mousePoint:Point = new Point(cropRect.x,cropRect.y);
-			dispatchEvent(new CropSelectorEvent(CropSelectorEvent.MOUSE_LOCATION,false,false,mousePoint));
-			removeEventListener(MouseEvent.MOUSE_MOVE,onMouseMove);
+			trace("onMouseRollOver");
+			//Mouse.hide();
+			//loadCursor(MouseCropping);
+			addEventListener(MouseEvent.ROLL_OUT,onMouseRollOut);
+			
 		}
 		
-		private function onHandleOut(e:MouseEvent):void
+		private function onMouseRollOut(e:MouseEvent):void
 		{
-			if(_selecting || _resizing || _moving) return;
-			addEventListener(MouseEvent.MOUSE_MOVE,onMouseMove);
+			trace("onMouseRollOut");
+			//Mouse.show();
+			//unloadCursor();
+		}
+		
+		private function onSolidLineRollOver(e:MouseEvent):void
+		{
+			if(compState == SELECTED)
+			{
+				Mouse.hide();
+				loadCursor(MouseMoving);
+				positionCursor();
+				_mouseCursor.startDrag();
+			}
+			trace("onSolidLineRollOver");
+			_solidLine.addEventListener(MouseEvent.ROLL_OUT,onSolidLineRollOut);
+		}
+		
+		private function onSolidLineRollOut(e:MouseEvent):void
+		{
+			if(compState == SELECTED)
+			{
+				_mouseCursor.stopDrag();
+				Mouse.show();
+				unloadCursor();
+			}
+			trace("onSolidLineRollOut");
+			
+		}
+		
+		private function onHandleRollOver(e:MouseEvent):void
+		{
+			if(compState == SELECTED)
+			{
+				Mouse.hide();
+				switch(e.currentTarget)
+				{
+					case _tlBtn:
+					case _brBtn:
+						loadCursor(MouseResizeAngel1);
+						break;
+					
+					case _tmBtn:
+					case _bmBtn:
+						loadCursor(MouseResizeVertical);
+						break;
+					
+					case _trBtn:
+					case _blBtn:
+						loadCursor(MouseResizeAngel2);
+						break;
+					
+					case _mlBtn:
+					case _mrBtn:
+						loadCursor(MouseResizeHorizontal);
+						break;
+					
+				}
+				positionCursor();
+				_mouseCursor.startDrag();
+			}
+			
+			trace("onHandleRollOver");
+			e.currentTarget.addEventListener(MouseEvent.ROLL_OUT,onHandleRollOut);
+			
+		}
+
+		private function onHandleRollOut(e:MouseEvent):void
+		{
+			if(compState == SELECTED)
+			{
+				_mouseCursor.stopDrag();
+				Mouse.show();
+				unloadCursor();
+			}
+			trace("onHandleRollOut");
+		}
+		
+		private function loadCursor(CursorClass:Class):void
+		{
+			var cursorImage:BitmapAsset = new CursorClass();
+			_mouseCursor.source = cursorImage;
+		}
+		
+		private function unloadCursor():void
+		{
+			_mouseCursor.source = null;
+		}
+		
+		private function positionCursor():void
+		{
+			if(_mouseCursor.source is MouseCropping)
+			{
+				_mouseCursor.x = this.mouseX - 5;
+				_mouseCursor.y = this.mouseY - 5;
+			}
+			else if(_mouseCursor.source is MouseMoving)
+			{
+				_mouseCursor.x = this.mouseX;
+				_mouseCursor.y = this.mouseY;
+			}
+			else if(_mouseCursor.source is MouseResizeVertical)
+			{
+				_mouseCursor.x = this.mouseX - 5;
+				_mouseCursor.y = this.mouseY - 10;
+			}
+			else if(_mouseCursor.source is MouseResizeHorizontal)
+			{
+				_mouseCursor.x = this.mouseX - 10;
+				_mouseCursor.y = this.mouseY - 5;
+			}
+			else if(_mouseCursor.source is MouseResizeAngel1)
+			{
+				_mouseCursor.x = this.mouseX - 7;
+				_mouseCursor.y = this.mouseY - 7;
+			}
+			else if(_mouseCursor.source is MouseResizeAngel2)
+			{
+				_mouseCursor.x = this.mouseX - 7;
+				_mouseCursor.y = this.mouseY - 7;
+			}
+			
+		}
+		
+		private function positionHandles():void
+		{
+			_tlBtn.x = _rectPoints[0].x;
+			_tlBtn.y = _rectPoints[0].y;
+			_tmBtn.x = _rectPoints[1].x;
+			_tmBtn.y = _rectPoints[1].y;
+			_trBtn.x = _rectPoints[2].x;
+			_trBtn.y = _rectPoints[2].y;
+			_mlBtn.x = _rectPoints[3].x;
+			_mlBtn.y = _rectPoints[3].y;
+			_mrBtn.x = _rectPoints[4].x;
+			_mrBtn.y = _rectPoints[4].y;
+			_blBtn.x = _rectPoints[5].x;
+			_blBtn.y = _rectPoints[5].y;
+			_bmBtn.x = _rectPoints[6].x;
+			_bmBtn.y = _rectPoints[6].y;
+			_brBtn.x = _rectPoints[7].x;
+			_brBtn.y = _rectPoints[7].y;
+		}
+		
+		private function drawMask():void
+		{
+			var x:Number = cropRect.x;
+			var y:Number = cropRect.y;
+			var w:Number = cropRect.width;
+			var h:Number = cropRect.height;
+			
+			graphics.clear();
+			graphics.beginFill(maskColor,maskOpacity);
+			graphics.drawRect(0,0,x,y);
+			graphics.drawRect(x,0,w,y);
+			graphics.drawRect(x+w,0,this.width-(x+w),y);
+			
+			graphics.drawRect(0,y,x,h);
+			graphics.drawRect(x+w,y,this.width-(x+w),h);
+			
+			graphics.drawRect(0,y+h,x,this.height-(y+h));
+			graphics.drawRect(x,y+h,w,this.height-(y+h));
+			graphics.drawRect(x+w,y+h,this.width-(x+w),this.height-(y+h));
+			
+			graphics.endFill();
+		}
+		
+		private function clearMask():void
+		{
+			graphics.clear();
 		}
 	
 		private function restrainInitPoint(initPoint:Point,restrainRect:Rectangle):Point{
@@ -742,7 +1047,7 @@ package sxf.utils.selector.cropselector
 			var c:Number;//斜率
 			var d:Number;
 			
-			if(_selecting)
+			if(compState == SELECTING)
 			{
 				if((refPoint.x>_selectInitPoint.x && refPoint.y>_selectInitPoint.y) || (refPoint.x<_selectInitPoint.x && refPoint.y<_selectInitPoint.y)){
 					
@@ -785,7 +1090,7 @@ package sxf.utils.selector.cropselector
 					restrainRect = restrainRect;
 				}
 			}
-			else if(_resizing)
+			else if(compState == RESIZING)
 			{
 				switch (_activatedBtn){
 					
@@ -1008,14 +1313,14 @@ package sxf.utils.selector.cropselector
 			var w:Number;
 			var h:Number;
 
-			if(_selecting)
+			if(compState == SELECTING)
 			{
 				x = Math.min(initPoint.x,endPoint.x);
 				y = Math.min(initPoint.y,endPoint.y);
 				w = Math.abs(endPoint.x - initPoint.x);
 				h = Math.abs(endPoint.y - initPoint.y);
 			}
-			else if(_resizing)
+			else if(compState == RESIZING)
 			{
 				switch(_activatedBtn){
 					
@@ -1068,6 +1373,13 @@ package sxf.utils.selector.cropselector
 					
 				}
 			}
+			else
+			{
+				x = Math.min(initPoint.x,endPoint.x);
+				y = Math.min(initPoint.y,endPoint.y);
+				w = Math.abs(endPoint.x - initPoint.x);
+				h = Math.abs(endPoint.y - initPoint.y);
+			}
 
 			return new Rectangle(x,y,w,h);
 			
@@ -1085,6 +1397,8 @@ package sxf.utils.selector.cropselector
 				{
 					this.restrainRect = defaultRestrainRect;
 					this.ratio = defaultRatio;
+					this.maskColor = defaultMaskColor;
+					this.maskOpacity = defaultMaskOpacity;
 				}
 				globalApp.styleManager.setStyleDeclaration("sxf.utils.selector.cropselector.CropSelector",style,true);
 			}
@@ -1092,6 +1406,8 @@ package sxf.utils.selector.cropselector
 			{
 				if(style.getStyle("restrainRect") == undefined) style.setStyle("restrainRect",defaultRestrainRect);
 				if(style.getStyle("ratio") == undefined) style.setStyle("ratio",defaultRatio);
+				if(style.getStyle("maskColor") == undefined) style.setStyle("maskColor",defaultMaskColor);
+				if(style.getStyle("maskOpacity") == undefined) style.setStyle("maskOpacity",defaultMaskOpacity);
 			}
 			return true;
 		}

@@ -16,8 +16,12 @@ lineselector|AntLine{
 }
 cropselector|CropSelector{
 	skin-class:ClassReference("sxf.utils.selector.cropselector.CropSelectorSkin");
+	maskOpacity:0.3;
 }
 cropselector|SolidLine{
 	
 }
-cropselector|HandleButton{}
+cropselector|HandleButton{
+	btnWidth:7px;
+	btnHeight:7px;
+}
