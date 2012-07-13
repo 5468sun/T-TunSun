@@ -63,12 +63,6 @@ package sxf.utils.selector.cropselector
 		private var _compState:String = NORMAL;
 		private var _compStateChange:Boolean = false;
 		
-		/*private var _normal:Boolean = false;
-		private var _selecting:Boolean = false;
-		private var _resizing:Boolean = false;
-		private var _moving:Boolean = false;
-		private var _selected:Boolean = false;*/
-		
 		private var _selectInitPoint:Point;
 		private var _selectEndPoint:Point;
 		
@@ -113,6 +107,8 @@ package sxf.utils.selector.cropselector
 		
 		[SkinPart(required="false")]
 		public var _mouseCursor:Image;
+		
+		private var _currentCursor:Class;
 		
 		[Embed(source="/TunSun/assets/cropping.png")]
 		public var MouseCropping:Class;
@@ -474,7 +470,10 @@ package sxf.utils.selector.cropselector
 					restrainRect = getStyle("restrainRect");
 				}
 			}
+			
+			
 		}
+		
 		
 		/**
 		 * 改变应用尺寸时调整约束矩形区域
@@ -645,7 +644,7 @@ package sxf.utils.selector.cropselector
 				if(e.target == _solidLine)
 				{
 					loadCursor(MouseMoving);
-					positionCursor();
+
 				}
 				else if(e.target is HandleButton)
 				{
@@ -671,7 +670,6 @@ package sxf.utils.selector.cropselector
 							loadCursor(MouseResizeHorizontal);
 							break;
 					}
-					positionCursor();
 				}
 				else
 				{
@@ -751,8 +749,10 @@ package sxf.utils.selector.cropselector
 		private function onMouseRollOver(e:MouseEvent):void
 		{
 			trace("onMouseRollOver");
-			//Mouse.hide();
-			//loadCursor(MouseCropping);
+			if((compState == MOVING||compState == RESIZING) && _currentCursor)
+			{
+				showCursor();
+			}
 			addEventListener(MouseEvent.ROLL_OUT,onMouseRollOut);
 			
 		}
@@ -760,18 +760,18 @@ package sxf.utils.selector.cropselector
 		private function onMouseRollOut(e:MouseEvent):void
 		{
 			trace("onMouseRollOut");
-			//Mouse.show();
-			//unloadCursor();
+			if((compState == MOVING||compState == RESIZING) && _currentCursor)
+			{
+				hideCursor();
+				
+			}
 		}
 		
 		private function onSolidLineRollOver(e:MouseEvent):void
 		{
 			if(compState == SELECTED)
 			{
-				Mouse.hide();
 				loadCursor(MouseMoving);
-				positionCursor();
-				_mouseCursor.startDrag();
 			}
 			trace("onSolidLineRollOver");
 			_solidLine.addEventListener(MouseEvent.ROLL_OUT,onSolidLineRollOut);
@@ -781,8 +781,6 @@ package sxf.utils.selector.cropselector
 		{
 			if(compState == SELECTED)
 			{
-				_mouseCursor.stopDrag();
-				Mouse.show();
 				unloadCursor();
 			}
 			trace("onSolidLineRollOut");
@@ -793,7 +791,6 @@ package sxf.utils.selector.cropselector
 		{
 			if(compState == SELECTED)
 			{
-				Mouse.hide();
 				switch(e.currentTarget)
 				{
 					case _tlBtn:
@@ -817,8 +814,6 @@ package sxf.utils.selector.cropselector
 						break;
 					
 				}
-				positionCursor();
-				_mouseCursor.startDrag();
 			}
 			
 			trace("onHandleRollOver");
@@ -830,8 +825,6 @@ package sxf.utils.selector.cropselector
 		{
 			if(compState == SELECTED)
 			{
-				_mouseCursor.stopDrag();
-				Mouse.show();
 				unloadCursor();
 			}
 			trace("onHandleRollOut");
@@ -839,13 +832,32 @@ package sxf.utils.selector.cropselector
 		
 		private function loadCursor(CursorClass:Class):void
 		{
+			Mouse.hide();
+			_currentCursor = CursorClass;
 			var cursorImage:BitmapAsset = new CursorClass();
 			_mouseCursor.source = cursorImage;
+			positionCursor();
+			_mouseCursor.startDrag();
 		}
 		
 		private function unloadCursor():void
 		{
+			_currentCursor = null;
 			_mouseCursor.source = null;
+			_mouseCursor.stopDrag();
+			Mouse.show();
+		}
+		
+		private function hideCursor():void
+		{
+			_mouseCursor.visible = false;
+			Mouse.show();
+		}
+		
+		private function showCursor():void
+		{
+			_mouseCursor.visible = true;
+			Mouse.hide();
 		}
 		
 		private function positionCursor():void
