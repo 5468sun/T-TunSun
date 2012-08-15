@@ -9,7 +9,6 @@
     <classEntry path="sxf.comps.localfileloader.LocalFileBrowser"/>
     <classEntry path="sxf.comps.localfileloader.LocalFileLoader"/>
     <classEntry path="sxf.comps.localfileloader.LocalFileLoaderEvent"/>
-    <classEntry path="sxf.comps.uploader.FileUploader"/>
     <classEntry path="sxf.comps.uploader.SplitUploader"/>
     <classEntry path="sxf.comps.uploader.SplitUploaderEvent"/>
     <classEntry path="sxf.utils.gamedrawing.GameDrawing"/>
